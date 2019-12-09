@@ -1,0 +1,80 @@
+
+
+package test.msquare
+
+import org.scalatest.Matchers
+import org.scalatest.FlatSpec
+import org.msquare.MSquare
+import org.msquare.WeightedSquare
+
+class MSquareTest extends FlatSpec with Matchers {
+  "WeightedSquare" should "order 3 === 3, 2, 3, 2, 4, 2, 3, 2, 3" in {
+    val res = WeightedSquare(3)
+    res.data shouldBe (Array(3, 2, 3, 2, 4, 2, 3, 2, 3))
+  }
+  it should "order 4 === 3, 2, 2, 3, 2, 3, 3, 2, 2, 3, 3, 2, 3, 2, 2, 3" in {
+    val res = WeightedSquare(4)
+    res.data shouldBe (Array(3, 2, 2, 3, 2, 3, 3, 2, 2, 3, 3, 2, 3, 2, 2, 3))
+  }
+  "magicConstant" should "of 3 == 15" in {
+    MSquare.magicConstant(3) shouldBe (15)
+  }
+  it should "of 4 == 34" in {
+    MSquare.magicConstant(4) shouldBe (34)
+
+  }
+  it should "10 == 505" in {
+    MSquare.magicConstant(10) shouldBe (505)
+  }
+  "possibleRCs" should "of 3 == 8" in {
+    val result = MSquare.possibleRCs(3)
+    result.size shouldBe 8
+    //    println(result)
+  }
+  it should " of 4 == 86" in {
+    val result = MSquare.possibleRCs(4)
+    result.size shouldBe 86
+    // result.foreach(println(_))
+  }
+  it should " of 5 == 1394" in {
+    val result = MSquare.possibleRCs(5)
+    result.size shouldBe 1394
+    //   println(result)
+  }
+  it should " of 6 == 32134" in {
+    val result = MSquare.possibleRCs(6)
+    result.size shouldBe 32134
+    //   println(result)
+  }
+  "frequencies(possibleRCs(3))" should "be 5 -> 4, 1 -> 2, 6 -> 3, 9 -> 2, 2 -> 3, 7 -> 2, 3 -> 2, 8 -> 3, 4 -> 3" in {
+    val result = MSquare.frequencies(MSquare.possibleRCs(3))
+    result should be(Map(5 -> 4, 1 -> 2, 6 -> 3, 9 -> 2, 2 -> 3, 7 -> 2, 3 -> 2, 8 -> 3, 4 -> 3))
+  }
+
+  "frequencies(possibleRCs(4))" should "be 5 -> 22, 10 -> 23, 14 -> 21, 1 -> 19, 6 -> 23, 9 -> 22, 13 -> 22, 2 -> 20, 12 -> 22, 7 -> 23, 3 -> 21, 16 -> 19, 11 -> 23, 8 -> 22, 4 -> 22, 15 -> 20" in {
+    val result = MSquare.frequencies(MSquare.possibleRCs(4))
+    result should be(Map(5 -> 22, 10 -> 23, 14 -> 21, 1 -> 19, 6 -> 23, 9 -> 22, 13 -> 22, 2 -> 20, 12 -> 22, 7 -> 23, 3 -> 21, 16 -> 19, 11 -> 23, 8 -> 22, 4 -> 22, 15 -> 20))
+  }
+  "connectedPossibleRCs" should " return graph ||22|| |8| " in {
+    val result = MSquare.connectedPossibleRCs(MSquare.possibleRCs(3))
+    result.graphSize should be(22)
+    result.order should be(8)
+    // println(result)
+  }
+
+  "verifyMSquare" should "be true for order 3" in {
+    val sq = List(List(7, 12, 1, 14), List(2, 13, 8, 11), List(16,3,10,5), List(9, 6, 15, 4))
+    MSquare.verifyMSquare(4, sq) shouldBe true
+  }
+
+//  "generateRNDRDC" should "return some RCD" in {
+//    for (times ← 1 to 400) {
+//      val rnd = MSquare.generateRNDRDC(MSquare.possibleRCs(4), List(),  List.range(1, 4 * 4 + 1))
+//      rnd should have size (4)
+//      //println(rnd)
+//    }
+//  }
+  
+  
+ 
+}
