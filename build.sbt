@@ -10,7 +10,8 @@ scalaVersion := "2.13.1"
 scalacOptions ++= Seq("–unchecked", "-deprecation")
 
 
-resolvers += Resolver.sonatypeRepo("releases")
+// resolvers += Resolver.sonatypeRepo("releases")
+
 
 
 
@@ -18,7 +19,9 @@ libraryDependencies ++= {
   	Seq(
 			"org.scalactic" %% "scalactic" % "3.1.0",
 			"org.scalatest" %% "scalatest" % "3.1.0" % "test",
-	    "org.scala-graph" %% "graph-core" % "1.13.1"
+	    "org.scala-graph" %% "graph-core" % "1.13.1",
+			 "org.rogach" %% "scallop" % "3.3.2",
+			"com.storm-enroute" %% "scalameter" % "0.19"
   	)
 }
 
