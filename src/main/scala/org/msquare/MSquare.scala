@@ -88,6 +88,7 @@ object MSquare {
 
   def bfsolveCross(order: Int): (Vector[RCD], Weight, Weight) = {
     val possibles = possibleRCs(order)
+
     val values = Vector.range(1, order * order + 1)
     val mc = magicConstant(order)
 
@@ -114,7 +115,7 @@ object MSquare {
     var oret = Vector[RCD]()
     var intentos = 0
     var totalIntentos = 0
-    val availableProcessors = Runtime.getRuntime.availableProcessors()
+    val availableProcessors = Runtime.getRuntime.availableProcessors() * 2
     while (!found.get()) {
       totalIntentos += availableProcessors
       val futures = for (_ <- 1 to availableProcessors) yield Future {
@@ -124,15 +125,15 @@ object MSquare {
         fut <- futures
         // result <- fut if !found
       } {
-        fut.onComplete {
+        fut onComplete {
           case Success(result) if !found.get() =>
             intentos += 1
             found.set(verifyMSquare(order, result, mc))
             oret = result
           case _ =>
         }
-        Await.ready(fut, 1000 milliseconds)
       }
+      for (fut <- futures) Await.ready(fut, 1000 milliseconds)
 
     }
     (oret, intentos, totalIntentos)
@@ -178,17 +179,23 @@ object MSquare {
     }
   }
 
-  def generateRNDRDCOpti(possibles: Vector[RCD], actual: RCD, values: RCD): RCD = {
-    val actualPos = possibles.filter { possible =>
-      // Select possibles that conatains actual values and all possible values are contained on disposable values
-      actual.forall { actualValue => possible.contains(actualValue) } && possible.forall { possibleValue =>
-        values.contains(possibleValue) || actual.contains(possibleValue)
+  def generateRNDRDCOpti(possibles: Vector[RCD], actual: RCD, remainingPossibilities: RCD): RCD = {
+    val actualPos = possibles.filter { possValue =>
+      // Select possibles that all actual values are in somw possible combination and all that's possible values are contained in remaining values or in the actual value
+      actual.forall { actualValue => possValue.contains(actualValue) } && possValue.forall { pValue =>
+        remainingPossibilities.contains(pValue) || actual.contains(pValue)
       }
     }
     actualPos match {
-      case Vector() => throw new Exception("Not Found")
-      case Vector(h) => actual ++ Random.shuffle(h.diff(actual))
-      case _ => actual ++ Random.shuffle(actualPos(Random.nextInt(actualPos.size)).diff(actual))
+        // Any possible RFC not found
+      case Vector() =>
+        throw new Exception("Not Found")
+        // Actual plus different found values
+      case Vector(h) =>
+        actual ++ Random.shuffle(h.diff(actual))
+        // Actual plus one ramdom selected
+      case _ =>
+        actual ++ Random.shuffle(actualPos(Random.nextInt(actualPos.size)).diff(actual))
     }
   }
 
