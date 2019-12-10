@@ -53,19 +53,19 @@ object MSquare {
   def bfsolve(order: Int): (List[RCD], Weight, Weight) = {
     val possibles = possibleRCs(order)
     val values = List.range(1, order * order + 1)
-    var intentos = 0
-    var totalIntentos = 0
+    var attemps = 0
+    var totalaAttemps = 0
 
     def trying() = Try({
       var vvalues = values
-      totalIntentos += 1
+      totalaAttemps += 1
       val ret = for {t <- 1 to order} yield {
         //        val rcd = generateRNDRDC(possibles, List(), vvalues)
         val rcd = generateRNDRDCOpti(possibles, vvalues)
         vvalues = vvalues.filterNot(rcd.contains(_))
         rcd
       }
-      intentos += 1
+      attemps += 1
       ret.toList
     })
 
@@ -77,7 +77,7 @@ object MSquare {
         oret = result
       }
     }
-    (oret, intentos, totalIntentos)
+    (oret, attemps, totalaAttemps)
   }
 
   def bfsolveCross(order: Int): (List[RCD], Weight, Weight) = {

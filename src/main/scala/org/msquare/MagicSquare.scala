@@ -5,7 +5,8 @@ import org.scalameter._
 
 
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
-  val order: ScallopOption[Weight] = opt[Int](required = true)
+  val order: ScallopOption[Weight] = opt[Int](required = true, name = "order")
+  val optimized = opt[Boolean](default=Some(false), name = "optimized")
   verify()
 }
 
@@ -31,7 +32,12 @@ object MagicSquare extends App {
   }
   var result: (List[RCD], Weight, Weight) = (List(), 0, 0)
   val time = measure {
-    result = bfsolveCross(order)
+    conf.optimized.toOption match {
+      case Some(true) =>
+        result = bfsolveCross(order)
+      case _ =>
+        result = bfsolve(order)
+    }
   }
 
   printText(result, time)
