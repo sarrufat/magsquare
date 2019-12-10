@@ -2,11 +2,15 @@
 
 package org.msquare
 
-import scalax.collection.Graph
-import scalax.collection.edge.LUnDiEdge
+import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.MapView
-import scala.util.{Random, Try}
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
+import scala.language.postfixOps
+import scala.util.{Random, Success, Try}
+
 
 trait Square[T] {
   def order: Int
@@ -30,33 +34,35 @@ object MSquare {
   // The magic Constant
   def magicConstant(n: Int): Weight = n * (n * n + 1) / 2
 
-  def possibleRCs(n: Int): List[RCD] = {
+  def possibleRCs(n: Int): Vector[RCD] = {
     val M = magicConstant(n)
 
-    def xcomb(vals: List[Int], n: Int): List[RCD] = {
-      if (n > vals.size) Nil
-      else vals match {
-        case _ :: _ if n == 1 => vals.map(List(_))
-        case hd :: tl => xcomb(tl, n - 1).map(hd :: _) ::: xcomb(tl, n)
-        case _ => Nil
-      }
+    def xcomb(vals: Vector[Int], n: Int): Vector[RCD] = {
+      if (n > vals.size) Vector()
+      else if (vals.size >= 2 && n == 1)
+        vals.map(Vector(_))
+      else if (vals.size >= 2)
+        xcomb(vals.drop(1), n - 1).map(_ :+ vals.head) ++ xcomb(vals.drop(1), n)
+      else
+        Vector()
     }
 
     val top = n * n
-    val values = List.range(1, top + 1)
+    val values = Vector.range(1, top + 1)
     xcomb(values, n).filter(_.sum == M)
   }
 
   /*
    * Brute force solver with possibleRCs aid
    */
-  def bfsolve(order: Int): (List[RCD], Weight, Weight) = {
+  def bfsolve(order: Int): (Vector[RCD], Weight, Weight) = {
     val possibles = possibleRCs(order)
-    val values = List.range(1, order * order + 1)
+    val mc = magicConstant(order)
+    val values = Vector.range(1, order * order + 1)
     var attemps = 0
     var totalaAttemps = 0
 
-    def trying() = Try({
+    def trying(): Try[Vector[RCD]] = Try({
       var vvalues = values
       totalaAttemps += 1
       val ret = for {t <- 1 to order} yield {
@@ -66,25 +72,27 @@ object MSquare {
         rcd
       }
       attemps += 1
-      ret.toList
+      ret.toVector
     })
 
     var found = false
-    var oret = List[RCD]()
+    var oret = Vector[RCD]()
     while (!found) {
       for (result <- trying()) {
-        found = verifyMSquare(order, result)
+        found = verifyMSquare(order, result, mc)
         oret = result
       }
     }
     (oret, attemps, totalaAttemps)
   }
 
-  def bfsolveCross(order: Int): (List[RCD], Weight, Weight) = {
+  def bfsolveCross(order: Int): (Vector[RCD], Weight, Weight) = {
     val possibles = possibleRCs(order)
-    val values = List.range(1, order * order + 1)
+    val values = Vector.range(1, order * order + 1)
+    val mc = magicConstant(order)
 
-    def trySsolveCrossed = {
+
+    def trySsolveCrossed: Vector[RCD] = {
       // Horizontal + vertical
       var vvalues = values
       var results: List[RCD] = List()
@@ -94,25 +102,38 @@ object MSquare {
           val row = (idx + 1) % 2 + j
           results(row)(col)
         }
-        val rcd = generateRNDRDCOpti(possibles, prefix.toList, vvalues)
+        val rcd = generateRNDRDCOpti(possibles, prefix.toVector, vvalues)
         results = results :+ rcd
         vvalues = vvalues.filterNot(rcd.contains(_))
       }
       //   println(crossRCD)
-      (for (idx <- 0 until order * 2 by 2) yield results(idx)).toList
+      (for (idx <- 0 until order * 2 by 2) yield results(idx)).toVector
     }
 
-    var found = false
-    var oret = List[RCD]()
+    val found: AtomicBoolean = new AtomicBoolean(false)
+    var oret = Vector[RCD]()
     var intentos = 0
     var totalIntentos = 0
-    while (!found) {
-      totalIntentos += 1
-      for (result <- Try(trySsolveCrossed)) {
-        intentos += 1
-        found = verifyMSquare(order, result)
-        oret = result
+    val availableProcessors = Runtime.getRuntime.availableProcessors()
+    while (!found.get()) {
+      totalIntentos += availableProcessors
+      val futures = for (_ <- 1 to availableProcessors) yield Future {
+        trySsolveCrossed
       }
+      for {
+        fut <- futures
+        // result <- fut if !found
+      } {
+        fut.onComplete {
+          case Success(result) if !found.get() =>
+            intentos += 1
+            found.set(verifyMSquare(order, result, mc))
+            oret = result
+          case _ =>
+        }
+        Await.ready(fut, 1000 milliseconds)
+      }
+
     }
     (oret, intentos, totalIntentos)
   }
@@ -127,9 +148,9 @@ object MSquare {
     }
     //  println("--> " + actual + " values -> " + values)
     actual match {
-      case Nil =>
+      case Vector() =>
         val v = values(Random.nextInt(values.size))
-        generateRNDRDC(possibles, List(v), values.filterNot(_ == v))
+        generateRNDRDC(possibles, Vector(v), values.filterNot(_ == v))
       case _ =>
         var v = values(Random.nextInt(values.size))
         //        while (actual.exists(_ == v)) {
@@ -148,37 +169,42 @@ object MSquare {
     }
   }
 
-  def generateRNDRDCOpti(possibles: List[RCD], values: RCD): RCD = {
+  def generateRNDRDCOpti(possibles: Vector[RCD], values: RCD): RCD = {
     val actualPos = possibles.filter(p => p.forall(v => values.contains(v)))
     actualPos match {
-      case Nil => throw new Exception("Not Found")
-      case h :: Nil => h
+      case Vector() => throw new Exception("Not Found")
+      case Vector(h) => h
       case _ => Random.shuffle(actualPos(Random.nextInt(actualPos.size)))
     }
   }
 
-  def generateRNDRDCOpti(possibles: List[RCD], actual: RCD, values: RCD): RCD = {
-    val actualPos = possibles.filter(p => actual.forall(v => p.contains(v)) && p.forall(v => values.contains(v) || actual.contains(v)))
+  def generateRNDRDCOpti(possibles: Vector[RCD], actual: RCD, values: RCD): RCD = {
+    val actualPos = possibles.filter { possible =>
+      // Select possibles that conatains actual values and all possible values are contained on disposable values
+      actual.forall { actualValue => possible.contains(actualValue) } && possible.forall { possibleValue =>
+        values.contains(possibleValue) || actual.contains(possibleValue)
+      }
+    }
     actualPos match {
-      case Nil => throw new Exception("Not Found")
-      case h :: Nil => actual ++ Random.shuffle(h.diff(actual))
+      case Vector() => throw new Exception("Not Found")
+      case Vector(h) => actual ++ Random.shuffle(h.diff(actual))
       case _ => actual ++ Random.shuffle(actualPos(Random.nextInt(actualPos.size)).diff(actual))
     }
   }
 
-  def getLRDiagonal(square: List[RCD]): Seq[Weight] = {
+  def getLRDiagonal(square: Vector[RCD]): Seq[Weight] = {
     for (xy <- square.indices) yield square(xy)(xy)
   }
 
-  def getRlDiagonal(square: List[RCD]): Seq[Weight] = {
+  def getRlDiagonal(square: Vector[RCD]): Seq[Weight] = {
     val ord = square.size - 1
     for (xy <- square.indices) yield square(ord - xy)(xy)
   }
 
-  def verifyMSquare(order: Int, square: List[RCD]): Boolean = {
+  def verifyMSquare(order: Int, square: Vector[RCD], sigma: Int): Boolean = {
     val s = square.flatten.distinct.size
     if (s != order * order) return false
-    val sigma = magicConstant(order)
+    //  val sigma = magicConstant(order)
     val lr = getLRDiagonal(square)
     val rl = getRlDiagonal(square)
     square.forall {
@@ -193,17 +219,5 @@ object MSquare {
     flatted.groupBy(x => x).view.mapValues(_.size)
   }
 
-  def connectedPossibleRCs(rcds: List[RCD]): RCDGraph = {
-    val rcdswidxs = rcds.zipWithIndex
-    val edges = for {
-      rcdwi <- rcdswidxs
-      rcd2 <- rcds.drop(rcdwi._2 + 1)
-      ele <- rcdwi._1
-      if rcd2.contains(ele)
-    } yield {
-      LUnDiEdge(rcdwi._1, rcd2)(ele)
-    }
-    val g = Graph.from(rcds, edges)
-    g
-  }
+
 }
