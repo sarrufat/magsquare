@@ -11,25 +11,6 @@ import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 import scala.util.{Random, Success, Try}
 
-
-trait Square[T] {
-  def order: Int
-
-  def data: Array[T]
-}
-
-case class WeightedSquare(order: Int) extends Square[Weight] {
-  val data: Array[Weight] = {
-    val idat = for {
-      x <- 0 until order
-      y <- 0 until order
-    } yield {
-      2 + (if (x == y) 1 else 0) + (if (x + y + 1 == order) 1 else 0)
-    }
-    idat.toArray
-  }
-}
-
 object MSquare {
   // The magic Constant
   def magicConstant(n: Int): Weight = n * (n * n + 1) / 2
@@ -92,18 +73,37 @@ object MSquare {
     val values = Vector.range(1, order * order + 1)
     val mc = magicConstant(order)
 
+    def generateRNDRDCOpti(actual: RCD, remainingPossibilities: RCD): RCD = {
+      val actualPos = possibles.filter { possValue =>
+        // Select possibles that all actual values are in some possible combination and all that's possible values are contained in remaining values or in the actual value
+        actual.forall { actualValue => possValue.contains(actualValue) } && possValue.forall { pValue =>
+          remainingPossibilities.contains(pValue) || actual.contains(pValue)
+        }
+      }
+      actualPos match {
+        // Any possible RFC not found
+        case Vector() =>
+          throw new Exception("Not Found")
+        // Actual plus different found values
+        case Vector(h) =>
+          actual ++ Random.shuffle(h.diff(actual))
+        // Actual plus one ramdom selected
+        case _ =>
+          actual ++ Random.shuffle(actualPos(Random.nextInt(actualPos.size)).diff(actual))
+      }
+    }
 
-    def trySsolveCrossed: Vector[RCD] = {
+    def trySolveCrossed: Vector[RCD] = {
       // Horizontal + vertical
       var vvalues = values
       var results: List[RCD] = List()
-      for (idx <- 0 until order * 2 - 1) yield {
+      for (idx <- 0 until order * 2 - 1) {
         val prefix = for (j <- 0 until idx by 2) yield {
           val col = idx / 2
           val row = (idx + 1) % 2 + j
           results(row)(col)
         }
-        val rcd = generateRNDRDCOpti(possibles, prefix.toVector, vvalues)
+        val rcd = generateRNDRDCOpti(prefix.toVector, vvalues)
         results = results :+ rcd
         vvalues = vvalues.filterNot(rcd.contains(_))
       }
@@ -119,7 +119,7 @@ object MSquare {
     while (!found.get()) {
       totalIntentos += availableProcessors
       val futures = for (_ <- 1 to availableProcessors) yield Future {
-        trySsolveCrossed
+        trySolveCrossed
       }
       for {
         fut <- futures
@@ -179,26 +179,6 @@ object MSquare {
     }
   }
 
-  def generateRNDRDCOpti(possibles: Vector[RCD], actual: RCD, remainingPossibilities: RCD): RCD = {
-    val actualPos = possibles.filter { possValue =>
-      // Select possibles that all actual values are in somw possible combination and all that's possible values are contained in remaining values or in the actual value
-      actual.forall { actualValue => possValue.contains(actualValue) } && possValue.forall { pValue =>
-        remainingPossibilities.contains(pValue) || actual.contains(pValue)
-      }
-    }
-    actualPos match {
-        // Any possible RFC not found
-      case Vector() =>
-        throw new Exception("Not Found")
-        // Actual plus different found values
-      case Vector(h) =>
-        actual ++ Random.shuffle(h.diff(actual))
-        // Actual plus one ramdom selected
-      case _ =>
-        actual ++ Random.shuffle(actualPos(Random.nextInt(actualPos.size)).diff(actual))
-    }
-  }
-
   def getLRDiagonal(square: Vector[RCD]): Seq[Weight] = {
     for (xy <- square.indices) yield square(xy)(xy)
   }
@@ -225,6 +205,5 @@ object MSquare {
     val flatted = sigmas.flatten
     flatted.groupBy(x => x).view.mapValues(_.size)
   }
-
 
 }

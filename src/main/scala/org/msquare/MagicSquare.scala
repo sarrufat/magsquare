@@ -18,6 +18,7 @@ object MagicSquare extends App {
   import MSquare._
 
   private def printText(result: (Vector[RCD], Weight, Weight), time: Quantity[Double]): Unit = {
+    println(s"Magic Constant = ${magicConstant(order)}")
     val midHead = (for (_ <- 2 to order) yield "+--").mkString
     val header = s"+--$midHead+"
     println(header)
