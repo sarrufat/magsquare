@@ -9,7 +9,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
-import scala.util.{Random, Success, Try}
+import scala.util.{Random, Success}
 
 object MSquare {
   type MSSolution = (Vector[RCD], Weight, Weight)
@@ -36,41 +36,8 @@ object MSquare {
     xcomb(values, n).filter(_.sum == M)
   }
 
-  /*
-   * Brute force solver with possibleRCs aid
-   */
-  def bfsolve(order: Int): (Vector[RCD], Weight, Weight) = {
-    val possibles = possibleRCs(order)
-    val mc = magicConstant(order)
-    val values = Vector.range(1, order * order + 1)
-    var attemps = 0
-    var totalaAttemps = 0
 
-    def trying(): Try[Vector[RCD]] = Try({
-      var vvalues = values
-      totalaAttemps += 1
-      val ret = for {t <- 1 to order} yield {
-        //        val rcd = generateRNDRDC(possibles, List(), vvalues)
-        val rcd = generateRNDRDCOpti(possibles, vvalues)
-        vvalues = vvalues.filterNot(rcd.contains(_))
-        rcd
-      }
-      attemps += 1
-      ret.toVector
-    })
-
-    var found = false
-    var oret = Vector[RCD]()
-    while (!found) {
-      for (result <- trying()) {
-        found = verifyMSquare(order, result, mc)
-        oret = result
-      }
-    }
-    (oret, attemps, totalaAttemps)
-  }
-
-  def bfsolveCross(order: Int): (Vector[RCD], Weight, Weight) = {
+  def bfsolveCross:  MSquare.Solver = { order =>
     val possibles = possibleRCs(order)
 
     val values = Vector.range(1, order * order + 1)
@@ -173,14 +140,6 @@ object MSquare {
     }
   }
 
-  def generateRNDRDCOpti(possibles: Vector[RCD], values: RCD): RCD = {
-    val actualPos = possibles.filter(p => p.forall(v => values.contains(v)))
-    actualPos match {
-      case Vector() => throw new Exception("Not Found")
-      case Vector(h) => h
-      case _ => Random.shuffle(actualPos(Random.nextInt(actualPos.size)))
-    }
-  }
 
   def getLRDiagonal(square: Vector[RCD]): Seq[Weight] = {
     for (xy <- square.indices) yield square(xy)(xy)
@@ -209,4 +168,31 @@ object MSquare {
     flatted.groupBy(x => x).view.mapValues(_.size)
   }
 
+  def rotations(square: Vector[RCD]): Seq[Vector[RCD]] = {
+    val r1 = square.reverse.transpose
+    val r2 = r1.reverse.transpose
+    val r3 = r2.reverse.transpose
+    List(r1, r2, r3)
+  }
+
+  def reflections(square: Vector[RCD]): Seq[Vector[RCD]] = {
+    // Vertical
+    val r1 = square.map(_.reverse)
+    // Horizonatal
+    val r2 = square.reverse
+    // Diagonal left top -> right bottom
+
+    val dim = square.size
+    val r3 = for (i <- 0 until dim) yield {
+      for (j <- 0 until dim) yield {
+        square(j)(i)
+      }
+    }
+    val r4 = for (i <- 1 to dim) yield {
+      for (j <- 1 to dim) yield {
+        square(dim - j)(dim - i)
+      }
+    }
+    List(r1, r2, r3.map(_.toVector).toVector, r4.map(_.toVector).toVector)
+  }
 }

@@ -1,11 +1,11 @@
 package org.msquare
 
+import org.msquare.MSquare.{Solver, bfsolveCross}
 import org.rogach.scallop.{ScallopConf, ScallopOption}
 import org.scalameter._
 
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   val order: ScallopOption[Weight] = opt[Int](required = true, name = "order")
-  val optimized: ScallopOption[Boolean] = opt[Boolean](default = Some(false), name = "optimized")
   verify()
 }
 
@@ -14,16 +14,25 @@ object MagicSquare extends App {
 
   val order = conf.order.toOption.get
 
+  def getSolverByMethod: Solver = {
+    if (order % 2 == 1)
+      SiameseMethod.solver(1)
+    else if (order % 4 == 2 )
+      StracheyMethod.solver
+    else
+      bfsolveCross
+  }
+
   import MSquare._
 
   private def printText(result: (Vector[RCD], Weight, Weight), time: Quantity[Double]): Unit = {
     println(s"Magic Constant = ${magicConstant(order)}")
-    val midHead = (for (_ <- 2 to order) yield "+--").mkString
-    val header = s"+--$midHead+"
+    val midHead = (for (_ <- 2 to order) yield "+---").mkString
+    val header = s"+---$midHead+"
     println(header)
     result._1.foreach { row =>
       val mid = (for (cell <- row) yield {
-        val fcell = cell.toString.reverse.padTo(2, ' ').reverse
+        val fcell = cell.toString.reverse.padTo(3, ' ').reverse
         s"|$fcell"
       }).mkString
       println(s"$mid|")
@@ -33,15 +42,15 @@ object MagicSquare extends App {
   }
 
   var result: (Vector[RCD], Weight, Weight) = (Vector(), 0, 0)
-  val siameseOpt = (order % 2) == 1
+
+
   val time = measure {
-    conf.optimized.toOption match {
-      case Some(true) =>
-        result = if (siameseOpt) SiameseMethod.solver(1)(order) else bfsolveCross(order)
-      case _ =>
-        result = bfsolve(order)
-    }
+    result = getSolverByMethod(order)
   }
 
+  assert(verifyMSquare(order, result._1,  magicConstant(order)))
+
   printText(result, time)
+  rotations(result._1).foreach(s => printText((s, 0, 0), time))
+  reflections(result._1).foreach(s => printText((s, 0, 0), time))
 }

@@ -3,7 +3,7 @@ package org.msquare
 object SiameseMethod {
   def solver(progressionBase: Int): MSquare.Solver = { order =>
     assert(order % 2 == 1)
-    val progression = (progressionBase to (order * order)).toSeq
+    val progression = (progressionBase until (order * order) + progressionBase)
 
     val serie = for {
       j <- 0 until order * order
