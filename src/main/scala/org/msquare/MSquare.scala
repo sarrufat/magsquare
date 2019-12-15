@@ -12,6 +12,9 @@ import scala.language.postfixOps
 import scala.util.{Random, Success, Try}
 
 object MSquare {
+  type MSSolution = (Vector[RCD], Weight, Weight)
+  type Solver = Int => MSSolution
+
   // The magic Constant
   def magicConstant(n: Int): Weight = n * (n * n + 1) / 2
 

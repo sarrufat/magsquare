@@ -3,7 +3,6 @@ package org.msquare
 import org.rogach.scallop.{ScallopConf, ScallopOption}
 import org.scalameter._
 
-
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   val order: ScallopOption[Weight] = opt[Int](required = true, name = "order")
   val optimized: ScallopOption[Boolean] = opt[Boolean](default = Some(false), name = "optimized")
@@ -34,10 +33,11 @@ object MagicSquare extends App {
   }
 
   var result: (Vector[RCD], Weight, Weight) = (Vector(), 0, 0)
+  val siameseOpt = (order % 2) == 1
   val time = measure {
     conf.optimized.toOption match {
       case Some(true) =>
-        result = bfsolveCross(order)
+        result = if (siameseOpt) SiameseMethod.solver(1)(order) else bfsolveCross(order)
       case _ =>
         result = bfsolve(order)
     }
