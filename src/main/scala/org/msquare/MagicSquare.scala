@@ -28,13 +28,15 @@ object MagicSquare extends App {
   import MSquare._
 
   private def printText(result: (Vector[RCD], Weight, Weight), time: Quantity[Double]): Unit = {
+    val numSpaces = s"${order*order}".length
+    val dashes = (1 to numSpaces).map( _ => '-').mkString("")
     println(s"Magic Constant = ${magicConstant(order)}")
-    val midHead = (for (_ <- 2 to order) yield "+---").mkString
-    val header = s"+---$midHead+"
+    val midHead = (for (_ <- 2 to order) yield s"+$dashes").mkString
+    val header = s"+$dashes$midHead+"
     println(header)
     result._1.foreach { row =>
       val mid = (for (cell <- row) yield {
-        val fcell = cell.toString.reverse.padTo(3, ' ').reverse
+        val fcell = cell.toString.reverse.padTo(numSpaces, ' ').reverse
         s"|$fcell"
       }).mkString
       println(s"$mid|")
