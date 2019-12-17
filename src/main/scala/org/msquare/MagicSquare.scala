@@ -19,6 +19,8 @@ object MagicSquare extends App {
       SiameseMethod.solver(1)
     else if (order % 4 == 2 )
       StracheyMethod.solver
+    else if (order % 4 == 0)
+      DoublyEvenMethod.solver
     else
       bfsolveCross
   }
