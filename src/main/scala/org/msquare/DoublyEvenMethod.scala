@@ -1,29 +1,42 @@
 package org.msquare
 
 object DoublyEvenMethod {
-
-  private def replaceDiagonals(order: Int, sq: Seq[Int]): Seq[Weight] = {
-    val u = order / 2
-    sq.zipWithIndex.map { tup =>
-      val mdiag = tup._2 % (u + 1) == 0
-      val sdiag = tup._2 % (u - 1) == 0
-      if (mdiag || sdiag)
-        order * order + 1 - tup._1
-      else
-        tup._1
-    }
+  private val m4diagonals: Vector[RCD] = {
+    Vector(Vector(1, 0, 0, 1), Vector(0, 1, 1, 0), Vector(0, 1, 1, 0), Vector(1, 0, 0, 1))
   }
-  private def toVec(u:Int, seq: Seq[Int]): Vector[Vector[Int]] = (for (j <- 0 until u) yield seq.toVector.slice(j * u, j * u + u)).toVector
+
+  def subPartition(order: Int) = {
+    val porder = order / 4
+    val lines = for (_ <- 0 until porder) yield {
+      val lines = for (v <- 0 until 4) yield {
+        val line = for (_ <- 0 until porder) yield {
+          m4diagonals(v)
+        }
+        line.flatten
+      }
+      lines.flatten
+    }
+    lines.flatten
+  }
 
   val solver: MSquare.Solver = { order =>
     assert(order % 4 == 0)
-    val u = order / 2
+    val u = 4
     val progression = 1 to order * order
-    val aSub = replaceDiagonals(order, progression.filter(x => (x - 1) < order * order / 2 && (x - 1) / u % 2 == 0))
-    val bSub = replaceDiagonals(order, progression.filter(x => (x - 1) < order * order / 2 && (x - 1) / u % 2 == 1))
-    val cSub = replaceDiagonals(order, progression.filter(x => x > order * order / 2 && (x - 1) / u % 2 == 0))
-    val dSub = replaceDiagonals(order, progression.filter(x => x > order * order / 2 && (x - 1) / u % 2 == 1))
-    (toVec(u, aSub).zip(toVec(u, bSub)).map( tup => tup._1 ++ tup._2) ++ toVec(u, cSub).zip(toVec(u, dSub)).map( tup => tup._1 ++ tup._2),
-      0,0)
+    val spar = subPartition(order)
+    var deleted = progression.zip(spar).filter(_._2 == 0).map(_._1).sorted
+    val flatSq = (for {
+      zt <- progression.zip(spar.reverse).reverse
+    } yield {
+      if (zt._2 == 0) {
+        val dv = deleted.head
+        deleted = deleted.drop(1)
+        dv
+      } else
+        zt._1
+    }).reverse.toVector
+    ((for (u <- 0 until order) yield {
+      flatSq.slice(u * order, u * order + order)
+    }).toVector, 0, 0)
   }
 }
